@@ -1,15 +1,12 @@
-import { createClient } from '@/lib/supabase-server'
-import { ProductWithVendor } from '@/types'
+import { HeroSection } from '@/components/hero-section'
 import { SearchBar } from '@/components/search-bar'
 import { CategoryFilter } from '@/components/category-filter'
 import { PriceFilter } from '@/components/price-filter'
-import { AnimatedProductGrid } from '@/components/animated-product-grid'
-import { HeroSection } from '@/components/hero-section'
-import { motion } from 'framer-motion'
+import { createClient } from '@/lib/supabase-server'
 
-const PRODUCTS_PER_PAGE = 12
-
-interface HomePageProps {
+export default async function HomePage({
+  searchParams,
+}: {
   searchParams: Promise<{
     search?: string
     category?: string
@@ -17,92 +14,41 @@ interface HomePageProps {
     max_price?: string
     page?: string
   }>
-}
-
-function FallbackUI() {
-  return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-      <HeroSection />
-      <div className="text-center py-16">
-        <p className="text-gray-500 text-lg">Loading products...</p>
-      </div>
-    </div>
-  )
-}
-
-export default async function HomePage({ searchParams }: HomePageProps) {
+}) {
   const params = await searchParams
-  let supabase
-  try {
-    supabase = await createClient()
-  } catch {
-    return <FallbackUI />
-  }
 
-  let typedCategories: import('@/types').Category[] = []
-  try {
-    const { data: categories, error: categoriesError } = await supabase
-      .from('categories')
-      .select('id, name, name_ml, slug, is_active, description, image_url, sort_order, created_at')
-      .eq('is_active', true)
-      .order('sort_order', { ascending: true })
-
-    if (categoriesError) {
-      console.error('Error fetching categories:', categoriesError)
-    } else {
-      typedCategories = (categories ?? []) as unknown as import('@/types').Category[]
-    }
-  } catch {
-    console.error('Failed to fetch categories')
-  }
-
-  const page = parseInt(params.page ?? '1', 10)
-  const from = (page - 1) * PRODUCTS_PER_PAGE
-  const to = from + PRODUCTS_PER_PAGE - 1
-
-  let products: ProductWithVendor[] = []
+  // Try to fetch data, but gracefully handle failures
+  let categories: unknown[] = []
+  let products: unknown[] = []
   let totalPages = 1
+  let page = 1
+
   try {
-    let query = supabase
+    const supabase = await createClient()
+    
+    const { data: cats } = await supabase
+      .from('categories')
+      .select('*')
+      .eq('is_active', true)
+    
+    categories = cats ?? []
+
+    page = parseInt(params.page ?? '1', 10)
+    const from = (page - 1) * 12
+    const to = from + 11
+
+    const { data: prods, count } = await supabase
       .from('products')
-      .select(
-        `
-        *,
-        vendor:profiles!products_vendor_id_fkey(id, full_name, vendor_name, vendor_verified)
-      `,
-        { count: 'exact' }
-      )
+      .select('*, vendor:profiles!products_vendor_id_fkey(id, full_name, vendor_name, vendor_verified)', { count: 'exact' })
       .eq('is_available', true)
-
-    if (params.search) {
-      const q = params.search.trim()
-      query = query.or(`name.ilike.%${q}%,name_ml.ilike.%${q}%`)
-    }
-
-    if (params.category) {
-      query = query.eq('category_id', params.category)
-    }
-
-    if (params.min_price) {
-      query = query.gte('price', parseFloat(params.min_price))
-    }
-
-    if (params.max_price) {
-      query = query.lte('price', parseFloat(params.max_price))
-    }
-
-    const { data, error: productsError, count } = await query
-      .order('created_at', { ascending: false })
       .range(from, to)
 
-    if (productsError) {
-      console.error('Error fetching products:', productsError)
-    } else {
-      products = (data ?? []) as ProductWithVendor[]
-      totalPages = count ? Math.ceil(count / PRODUCTS_PER_PAGE) : 1
-    }
+    products = prods ?? []
+    totalPages = count ? Math.ceil(count / 12) : 1
   } catch {
-    console.error('Failed to fetch products')
+    // Silently fail - page will show empty state
+    categories = []
+    products = []
   }
 
   return (
@@ -112,7 +58,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       <div className="space-y-4 mb-8">
         <SearchBar initialValue={params.search ?? ''} />
         <CategoryFilter
-          categories={typedCategories}
+          categories={categories as never}
           activeCategory={params.category ?? null}
         />
         <PriceFilter
@@ -121,51 +67,51 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         />
       </div>
 
-      {products && products.length > 0 ? (
-        <>
-          <AnimatedProductGrid products={products} />
-
-          {totalPages > 1 && (
-            <div className="flex justify-center items-center gap-2 mt-8">
-              {page > 1 && (
-                <a
-                  href={`/?${new URLSearchParams({
-                    ...params,
-                    page: String(page - 1),
-                  }).toString()}`}
-                  className="px-4 py-2 rounded-lg border border-gray-200 text-sm hover:bg-gray-50 transition"
-                >
-                  Previous
-                </a>
-              )}
-              <span className="text-sm text-gray-600">
-                Page {page} of {totalPages}
-              </span>
-              {page < totalPages && (
-                <a
-                  href={`/?${new URLSearchParams({
-                    ...params,
-                    page: String(page + 1),
-                  }).toString()}`}
-                  className="px-4 py-2 rounded-lg border border-gray-200 text-sm hover:bg-gray-50 transition"
-                >
-                  Next
-                </a>
-              )}
+      {products.length > 0 ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {products.map((product: { id: string }) => (
+            <div key={product.id} className="rounded-2xl border p-4">
+              Product: {product.id}
             </div>
-          )}
-        </>
+          ))}
+        </div>
       ) : (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="text-center py-16"
-        >
+        <div className="text-center py-16">
           <p className="text-gray-500 text-lg">No products found</p>
           <p className="text-gray-400 text-sm mt-1">
             Try adjusting your search or filters
           </p>
-        </motion.div>
+        </div>
+      )}
+
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center gap-2 mt-8">
+          {page > 1 && (
+            <a
+              href={`/?${new URLSearchParams({
+                ...params,
+                page: String(page - 1),
+              }).toString()}`}
+              className="px-4 py-2 rounded-lg border border-gray-200 text-sm hover:bg-gray-50 transition"
+            >
+              Previous
+            </a>
+          )}
+          <span className="text-sm text-gray-600">
+            Page {page} of {totalPages}
+          </span>
+          {page < totalPages && (
+            <a
+              href={`/?${new URLSearchParams({
+                ...params,
+                page: String(page + 1),
+              }).toString()}`}
+              className="px-4 py-2 rounded-lg border border-gray-200 text-sm hover:bg-gray-50 transition"
+            >
+              Next
+            </a>
+          )}
+        </div>
       )}
     </div>
   )
