@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { motion, AnimatePresence } from 'framer-motion'
 import { ProductWithVendor } from '@/types'
 import { useCart } from '@/hooks/use-cart'
 import { useAuth } from '@/hooks/use-auth'
@@ -32,6 +33,7 @@ export function ProductCard({ product, isFavourited: initialFavourited, showFavo
   const { addItem } = useCart()
   const supabase = createClient()
   const [isFavourited, setIsFavourited] = useState(initialFavourited ?? false)
+  const [isAdding, setIsAdding] = useState(false)
 
   useEffect(() => {
     if (initialFavourited !== undefined) {
@@ -40,6 +42,7 @@ export function ProductCard({ product, isFavourited: initialFavourited, showFavo
   }, [initialFavourited])
 
   const handleAddToCart = () => {
+    setIsAdding(true)
     addItem({
       product_id: product.id,
       quantity: product.min_order_quantity,
@@ -49,6 +52,7 @@ export function ProductCard({ product, isFavourited: initialFavourited, showFavo
       unit: product.unit,
     })
     toast.success(`${product.name} added to cart`)
+    setTimeout(() => setIsAdding(false), 500)
   }
 
   const handleToggleFavourite = async () => {
@@ -91,46 +95,55 @@ export function ProductCard({ product, isFavourited: initialFavourited, showFavo
   }
 
   const vendorName = product.vendor?.vendor_name ?? product.vendor?.full_name ?? 'Unknown Vendor'
+  const isOutOfStock = !product.is_available || product.stock_quantity <= 0
 
   return (
-    <div className="rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden bg-white flex flex-col transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
-      <div className="relative">
-        <Link href={`/product/${product.id}`} className="block">
-          <div className="relative w-full aspect-square bg-gray-100">
-            <Image
-              src={product.image_urls?.[0] ?? PLACEHOLDER_IMAGE}
-              alt={product.name}
-              fill
-              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-              className="object-cover"
-            />
-            {!product.is_available && (
-              <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                <span className="bg-red-500 text-white text-xs font-semibold px-3 py-1 rounded-full">
-                  Out of Stock
-                </span>
-              </div>
-            )}
-            {product.is_available && product.stock_quantity > 0 && (
-              <div className="absolute top-2 right-2">
-                <span className="bg-primary text-white text-xs font-semibold px-2 py-0.5 rounded-full">
-                  In Stock
-                </span>
-              </div>
-            )}
-          </div>
+    <motion.div
+      whileHover={{ y: -8 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+      className="group relative bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-2xl hover:shadow-primary/10 transition-all duration-300"
+    >
+      {/* Image container */}
+      <div className="relative aspect-square overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100">
+        <Link href={`/product/${product.id}`}>
+          <Image
+            src={product.image_urls?.[0] ?? PLACEHOLDER_IMAGE}
+            alt={product.name}
+            fill
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+            className="object-cover group-hover:scale-110 transition-transform duration-500"
+          />
         </Link>
+
+        {/* Stock badge */}
+        <div className="absolute top-3 right-3">
+          {isOutOfStock ? (
+            <span className="px-3 py-1 bg-red-500 text-white text-xs font-semibold rounded-full shadow-lg">
+              Out of Stock
+            </span>
+          ) : (
+            <span className="px-3 py-1 bg-primary text-white text-xs font-semibold rounded-full shadow-lg shadow-primary/30 flex items-center gap-1">
+              <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
+              In Stock
+            </span>
+          )}
+        </div>
+
+        {/* Favorite button */}
         {showFavourite && (
-          <button
+          <motion.button
             onClick={handleToggleFavourite}
-            className="absolute top-2 left-2 p-1.5 bg-white/80 rounded-full hover:bg-white transition shadow-sm"
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            className="absolute top-3 left-3 p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-lg hover:shadow-xl transition-all"
             aria-label={isFavourited ? 'Remove from favourites' : 'Add to favourites'}
           >
-            <svg
-              className={`w-5 h-5 ${isFavourited ? 'text-red-500 fill-red-500' : 'text-gray-400'}`}
+            <motion.svg
+              className={`w-5 h-5 ${isFavourited ? 'text-red-500' : 'text-gray-400'}`}
               fill={isFavourited ? 'currentColor' : 'none'}
               stroke="currentColor"
               viewBox="0 0 24 24"
+              animate={isFavourited ? { scale: [1, 1.2, 1] } : {}}
             >
               <path
                 strokeLinecap="round"
@@ -138,41 +151,53 @@ export function ProductCard({ product, isFavourited: initialFavourited, showFavo
                 strokeWidth={2}
                 d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
               />
-            </svg>
-          </button>
+            </motion.svg>
+          </motion.button>
         )}
-      </div>
 
-      <div className="p-4 flex flex-col flex-1">
-        <Link href={`/product/${product.id}`} className="block">
-          <h3 className="font-semibold text-gray-900 line-clamp-1">
-            {product.name}
-          </h3>
-          {product.name_ml && (
-            <p className="text-xs text-gray-500 mt-0.5">{product.name_ml}</p>
-          )}
-        </Link>
-
-        <div className="mt-2 flex items-baseline gap-1">
-          <span className="text-lg font-bold text-primary">
+        {/* Price */}
+        <div className="mt-3 flex items-baseline gap-2">
+          <span className="text-xl font-bold text-primary">
             {formatPrice(Number(product.price))}
           </span>
-          <span className="text-xs text-gray-500">/{product.unit}</span>
+          <span className="text-xs text-muted">/{product.unit}</span>
         </div>
 
-        <p className="text-xs text-gray-500 mt-2 line-clamp-1">{vendorName}</p>
-
-        <div className="mt-auto pt-3 flex items-center gap-2">
-          <button
-            onClick={handleAddToCart}
-            disabled={!product.is_available || product.stock_quantity <= 0}
-            className="flex-1 bg-cta-yellow text-cta-text text-sm font-medium py-2 rounded-lg hover:bg-opacity-90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-            aria-label={`Add ${product.name} to cart`}
-          >
-            Add to Cart
-          </button>
-        </div>
+        {/* Add to Cart button */}
+        <motion.button
+          onClick={handleAddToCart}
+          disabled={isOutOfStock || isAdding}
+          whileHover={!isOutOfStock ? { scale: 1.02 } : {}}
+          whileTap={!isOutOfStock ? { scale: 0.98 } : {}}
+          className={`mt-3 w-full py-3 rounded-xl font-semibold text-sm transition-all ${
+            isOutOfStock
+              ? 'bg-gray-100 text-muted cursor-not-allowed'
+              : 'bg-primary text-white hover:shadow-lg hover:shadow-primary/30'
+          }`}
+        >
+          <AnimatePresence mode="wait">
+            {isAdding ? (
+              <motion.span
+                key="added"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="flex items-center justify-center gap-2"
+              >
+                <motion.span
+                  animate={{ scale: [1, 1.2, 1] }}
+                  transition={{ duration: 0.5 }}
+                >
+                  ✓
+                </motion.span>
+                Added!
+              </motion.span>
+            ) : (
+              <span>{isOutOfStock ? 'Unavailable' : 'Add to Cart'}</span>
+            )}
+          </AnimatePresence>
+        </motion.button>
       </div>
-    </div>
+    </motion.div>
   )
 }

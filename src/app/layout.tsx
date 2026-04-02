@@ -3,7 +3,7 @@ import { Geist, Geist_Mono } from 'next/font/google'
 import { NextIntlClientProvider } from 'next-intl'
 import { getMessages } from 'next-intl/server'
 import './globals.css'
-import Header from '@/components/header'
+import HeaderWrapper from '@/components/header-wrapper'
 import { Toaster } from 'react-hot-toast'
 
 const geistSans = Geist({
@@ -36,7 +36,7 @@ export default async function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <NextIntlClientProvider messages={messages}>
-          <Header />
+          <HeaderWrapper />
           <main className="flex-1">{children}</main>
           <Toaster position="top-right" />
         </NextIntlClientProvider>
