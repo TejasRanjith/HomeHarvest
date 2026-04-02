@@ -1,12 +1,14 @@
-import { HeroSection } from '@/components/hero-section'
+import { createClient } from '@/lib/supabase-server'
+import { ProductWithVendor } from '@/types'
 import { SearchBar } from '@/components/search-bar'
 import { CategoryFilter } from '@/components/category-filter'
 import { PriceFilter } from '@/components/price-filter'
-import { createClient } from '@/lib/supabase-server'
+import { AnimatedProductGrid } from '@/components/animated-product-grid'
+import { HeroSection } from '@/components/hero-section'
 
-export default async function HomePage({
-  searchParams,
-}: {
+const PRODUCTS_PER_PAGE = 12
+
+interface HomePageProps {
   searchParams: Promise<{
     search?: string
     category?: string
@@ -14,39 +16,66 @@ export default async function HomePage({
     max_price?: string
     page?: string
   }>
-}) {
+}
+
+export default async function HomePage({ searchParams }: HomePageProps) {
   const params = await searchParams
 
-  // Try to fetch data, but gracefully handle failures
-  let categories: unknown[] = []
-  let products: unknown[] = []
+  let categories: import('@/types').Category[] = []
+  let products: ProductWithVendor[] = []
   let totalPages = 1
   let page = 1
 
   try {
     const supabase = await createClient()
-    
+
     const { data: cats } = await supabase
       .from('categories')
-      .select('*')
+      .select('id, name, name_ml, slug, is_active, description, image_url, sort_order, created_at')
       .eq('is_active', true)
-    
-    categories = cats ?? []
+      .order('sort_order', { ascending: true })
+
+    categories = (cats ?? []) as unknown as import('@/types').Category[]
 
     page = parseInt(params.page ?? '1', 10)
-    const from = (page - 1) * 12
-    const to = from + 11
+    const from = (page - 1) * PRODUCTS_PER_PAGE
+    const to = from + PRODUCTS_PER_PAGE - 1
 
-    const { data: prods, count } = await supabase
+    let query = supabase
       .from('products')
-      .select('*, vendor:profiles!products_vendor_id_fkey(id, full_name, vendor_name, vendor_verified)', { count: 'exact' })
+      .select(
+        `
+        *,
+        vendor:profiles!products_vendor_id_fkey(id, full_name, vendor_name, vendor_verified)
+      `,
+        { count: 'exact' }
+      )
       .eq('is_available', true)
+
+    if (params.search) {
+      const q = params.search.trim()
+      query = query.or(`name.ilike.%${q}%,name_ml.ilike.%${q}%`)
+    }
+
+    if (params.category) {
+      query = query.eq('category_id', params.category)
+    }
+
+    if (params.min_price) {
+      query = query.gte('price', parseFloat(params.min_price))
+    }
+
+    if (params.max_price) {
+      query = query.lte('price', parseFloat(params.max_price))
+    }
+
+    const { data: prods, count } = await query
+      .order('created_at', { ascending: false })
       .range(from, to)
 
-    products = prods ?? []
-    totalPages = count ? Math.ceil(count / 12) : 1
+    products = (prods ?? []) as ProductWithVendor[]
+    totalPages = count ? Math.ceil(count / PRODUCTS_PER_PAGE) : 1
   } catch {
-    // Silently fail - page will show empty state
     categories = []
     products = []
   }
@@ -58,7 +87,7 @@ export default async function HomePage({
       <div className="space-y-4 mb-8">
         <SearchBar initialValue={params.search ?? ''} />
         <CategoryFilter
-          categories={categories as never}
+          categories={categories}
           activeCategory={params.category ?? null}
         />
         <PriceFilter
@@ -67,22 +96,7 @@ export default async function HomePage({
         />
       </div>
 
-      {products.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {(products as Array<{ id: string }>).map((product) => (
-            <div key={product.id} className="rounded-2xl border p-4">
-              Product: {product.id}
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="text-center py-16">
-          <p className="text-gray-500 text-lg">No products found</p>
-          <p className="text-gray-400 text-sm mt-1">
-            Try adjusting your search or filters
-          </p>
-        </div>
-      )}
+      <AnimatedProductGrid products={products} />
 
       {totalPages > 1 && (
         <div className="flex justify-center items-center gap-2 mt-8">
