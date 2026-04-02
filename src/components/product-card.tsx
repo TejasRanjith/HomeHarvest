@@ -93,7 +93,7 @@ export function ProductCard({ product, isFavourited: initialFavourited, showFavo
   const vendorName = product.vendor?.vendor_name ?? product.vendor?.full_name ?? 'Unknown Vendor'
 
   return (
-    <div className="rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden bg-white flex flex-col">
+    <div className="rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden bg-white flex flex-col transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
       <div className="relative">
         <Link href={`/product/${product.id}`} className="block">
           <div className="relative w-full aspect-square bg-gray-100">
@@ -113,7 +113,7 @@ export function ProductCard({ product, isFavourited: initialFavourited, showFavo
             )}
             {product.is_available && product.stock_quantity > 0 && (
               <div className="absolute top-2 right-2">
-                <span className="bg-[#8FBC8F] text-white text-xs font-semibold px-2 py-0.5 rounded-full">
+                <span className="bg-primary text-white text-xs font-semibold px-2 py-0.5 rounded-full">
                   In Stock
                 </span>
               </div>
@@ -154,7 +154,7 @@ export function ProductCard({ product, isFavourited: initialFavourited, showFavo
         </Link>
 
         <div className="mt-2 flex items-baseline gap-1">
-          <span className="text-lg font-bold text-[#8FBC8F]">
+          <span className="text-lg font-bold text-primary">
             {formatPrice(Number(product.price))}
           </span>
           <span className="text-xs text-gray-500">/{product.unit}</span>
@@ -166,7 +166,7 @@ export function ProductCard({ product, isFavourited: initialFavourited, showFavo
           <button
             onClick={handleAddToCart}
             disabled={!product.is_available || product.stock_quantity <= 0}
-            className="flex-1 bg-[#F0E68C] text-[#5C4033] text-sm font-medium py-2 rounded-lg hover:bg-[#e6db7a] transition disabled:opacity-40 disabled:cursor-not-allowed"
+            className="flex-1 bg-cta-yellow text-cta-text text-sm font-medium py-2 rounded-lg hover:bg-opacity-90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             aria-label={`Add ${product.name} to cart`}
           >
             Add to Cart
