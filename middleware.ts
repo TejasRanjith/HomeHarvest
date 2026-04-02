@@ -26,11 +26,13 @@ export async function middleware(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname
 
-  // Skip auth check for static assets and public routes
+  // Improved path exclusion to prevent infinite loops
   if (
     pathname.startsWith('/_next') ||
+    pathname.startsWith('/api') || // Ensure API routes are public if needed
     pathname.startsWith('/static') ||
-    pathname === '/favicon.ico'
+    pathname === '/favicon.ico' ||
+    pathname.includes('.') // Exclude static files
   ) {
     return supabaseResponse
   }
