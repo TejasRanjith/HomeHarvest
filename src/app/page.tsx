@@ -1,9 +1,11 @@
 import { createClient } from '@/lib/supabase-server'
+import { ProductWithVendor } from '@/types'
 import { SearchBar } from '@/components/search-bar'
 import { CategoryFilter } from '@/components/category-filter'
 import { PriceFilter } from '@/components/price-filter'
 import { AnimatedProductGrid } from '@/components/animated-product-grid'
 import { HeroSection } from '@/components/hero-section'
+import { motion } from 'framer-motion'
 
 const PRODUCTS_PER_PAGE = 12
 
@@ -17,63 +19,91 @@ interface HomePageProps {
   }>
 }
 
+function FallbackUI() {
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <HeroSection />
+      <div className="text-center py-16">
+        <p className="text-gray-500 text-lg">Loading products...</p>
+      </div>
+    </div>
+  )
+}
+
 export default async function HomePage({ searchParams }: HomePageProps) {
   const params = await searchParams
-  const supabase = await createClient()
-
-  const { data: categories, error: categoriesError } = await supabase
-    .from('categories')
-    .select('id, name, name_ml, slug, is_active, description, image_url, sort_order, created_at')
-    .eq('is_active', true)
-    .order('sort_order', { ascending: true })
-
-  if (categoriesError) {
-    console.error('Error fetching categories:', categoriesError)
+  let supabase
+  try {
+    supabase = await createClient()
+  } catch {
+    return <FallbackUI />
   }
 
-  const typedCategories = (categories ?? []) as unknown as import('@/types').Category[]
+  let typedCategories: import('@/types').Category[] = []
+  try {
+    const { data: categories, error: categoriesError } = await supabase
+      .from('categories')
+      .select('id, name, name_ml, slug, is_active, description, image_url, sort_order, created_at')
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true })
+
+    if (categoriesError) {
+      console.error('Error fetching categories:', categoriesError)
+    } else {
+      typedCategories = (categories ?? []) as unknown as import('@/types').Category[]
+    }
+  } catch {
+    console.error('Failed to fetch categories')
+  }
 
   const page = parseInt(params.page ?? '1', 10)
   const from = (page - 1) * PRODUCTS_PER_PAGE
   const to = from + PRODUCTS_PER_PAGE - 1
 
-  let query = supabase
-    .from('products')
-    .select(
-      `
-      *,
-      vendor:profiles!products_vendor_id_fkey(id, full_name, vendor_name, vendor_verified)
-    `,
-      { count: 'exact' }
-    )
-    .eq('is_available', true)
+  let products: ProductWithVendor[] = []
+  let totalPages = 1
+  try {
+    let query = supabase
+      .from('products')
+      .select(
+        `
+        *,
+        vendor:profiles!products_vendor_id_fkey(id, full_name, vendor_name, vendor_verified)
+      `,
+        { count: 'exact' }
+      )
+      .eq('is_available', true)
 
-  if (params.search) {
-    const q = params.search.trim()
-    query = query.or(`name.ilike.%${q}%,name_ml.ilike.%${q}%`)
+    if (params.search) {
+      const q = params.search.trim()
+      query = query.or(`name.ilike.%${q}%,name_ml.ilike.%${q}%`)
+    }
+
+    if (params.category) {
+      query = query.eq('category_id', params.category)
+    }
+
+    if (params.min_price) {
+      query = query.gte('price', parseFloat(params.min_price))
+    }
+
+    if (params.max_price) {
+      query = query.lte('price', parseFloat(params.max_price))
+    }
+
+    const { data, error: productsError, count } = await query
+      .order('created_at', { ascending: false })
+      .range(from, to)
+
+    if (productsError) {
+      console.error('Error fetching products:', productsError)
+    } else {
+      products = (data ?? []) as ProductWithVendor[]
+      totalPages = count ? Math.ceil(count / PRODUCTS_PER_PAGE) : 1
+    }
+  } catch {
+    console.error('Failed to fetch products')
   }
-
-  if (params.category) {
-    query = query.eq('category_id', params.category)
-  }
-
-  if (params.min_price) {
-    query = query.gte('price', parseFloat(params.min_price))
-  }
-
-  if (params.max_price) {
-    query = query.lte('price', parseFloat(params.max_price))
-  }
-
-  const { data: products, error: productsError, count } = await query
-    .order('created_at', { ascending: false })
-    .range(from, to)
-
-  if (productsError) {
-    console.error('Error fetching products:', productsError)
-  }
-
-  const totalPages = count ? Math.ceil(count / PRODUCTS_PER_PAGE) : 1
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -126,12 +156,16 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           )}
         </>
       ) : (
-        <div className="text-center py-16">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="text-center py-16"
+        >
           <p className="text-gray-500 text-lg">No products found</p>
           <p className="text-gray-400 text-sm mt-1">
             Try adjusting your search or filters
           </p>
-        </div>
+        </motion.div>
       )}
     </div>
   )
