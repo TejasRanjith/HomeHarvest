@@ -24,24 +24,43 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
   const pathname = request.nextUrl.pathname
+
+  // Skip auth check for static assets and public routes
+  if (
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/static') ||
+    pathname === '/favicon.ico'
+  ) {
+    return supabaseResponse
+  }
+
+  let user = null
+  try {
+    const { data } = await supabase.auth.getUser()
+    user = data?.user ?? null
+  } catch {
+    // If auth check fails, treat as unauthenticated user
+    user = null
+  }
 
   if (!user && (pathname.startsWith('/vendor') || pathname.startsWith('/admin'))) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
   if (user && pathname.startsWith('/admin')) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single()
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single()
 
-    if (!profile || (profile as Record<string, unknown>).role !== 'admin') {
+      if (!profile || (profile as Record<string, unknown>).role !== 'admin') {
+        return NextResponse.redirect(new URL('/', request.url))
+      }
+    } catch {
+      // If profile check fails, redirect to home for safety
       return NextResponse.redirect(new URL('/', request.url))
     }
   }
