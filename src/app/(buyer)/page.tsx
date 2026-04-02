@@ -3,7 +3,7 @@ import { ProductWithVendor } from '@/types'
 import { SearchBar } from '@/components/search-bar'
 import { CategoryFilter } from '@/components/category-filter'
 import { PriceFilter } from '@/components/price-filter'
-import { ProductCard } from '@/components/product-card'
+import { AnimatedProductGrid } from '@/components/animated-product-grid'
 
 const PRODUCTS_PER_PAGE = 12
 
@@ -100,11 +100,7 @@ export default async function BuyerPage({ searchParams }: BuyerPageProps) {
 
       {products && products.length > 0 ? (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {products.map((product: ProductWithVendor) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
+          <AnimatedProductGrid products={products} />
 
           {totalPages > 1 && (
             <div className="flex justify-center items-center gap-2 mt-8">
