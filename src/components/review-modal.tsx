@@ -1,87 +1,96 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { createClient } from '@/lib/supabase'
-import { toast } from 'react-hot-toast'
+import { useState } from "react";
+import { createClient } from "@/lib/supabase";
+import { toast } from "react-hot-toast";
+import { useTranslations } from "next-intl";
 
 interface ReviewModalProps {
-  productId: string
-  orderId: string
-  productName: string
-  onClose: () => void
-  onSubmit: () => void
+  productId: string;
+  orderId: string;
+  productName: string;
+  onClose: () => void;
+  onSubmit: () => void;
 }
 
-export function ReviewModal({ productId, orderId, productName, onClose, onSubmit }: ReviewModalProps) {
-  const supabase = createClient()
-  const [rating, setRating] = useState(0)
-  const [hoverRating, setHoverRating] = useState(0)
-  const [comment, setComment] = useState('')
-  const [imageFile, setImageFile] = useState<File | null>(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+export function ReviewModal({
+  productId,
+  orderId,
+  productName,
+  onClose,
+  onSubmit,
+}: ReviewModalProps) {
+  const supabase = createClient();
+  const [rating, setRating] = useState(0);
+  const [hoverRating, setHoverRating] = useState(0);
+  const [comment, setComment] = useState("");
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async () => {
     if (rating === 0) {
-      toast.error('Please select a rating')
-      return
+      toast.error("Please select a rating");
+      return;
     }
 
-    setIsSubmitting(true)
+    setIsSubmitting(true);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) {
-        toast.error('You must be logged in to review')
-        setIsSubmitting(false)
-        return
+        toast.error("You must be logged in to review");
+        setIsSubmitting(false);
+        return;
       }
 
-      let imageUrl: string | null = null
+      let imageUrl: string | null = null;
       if (imageFile) {
-        const fileName = `${user.id}/${Date.now()}-${imageFile.name}`
+        const fileName = `${user.id}/${Date.now()}-${imageFile.name}`;
         const { data, error } = await supabase.storage
-          .from('review-images')
-          .upload(fileName, imageFile)
+          .from("review-images")
+          .upload(fileName, imageFile);
 
         if (error) {
-          toast.error('Failed to upload image')
-          setIsSubmitting(false)
-          return
+          toast.error("Failed to upload image");
+          setIsSubmitting(false);
+          return;
         }
 
         const { data: urlData } = supabase.storage
-          .from('review-images')
-          .getPublicUrl(data.path)
+          .from("review-images")
+          .getPublicUrl(data.path);
 
         if (urlData?.publicUrl) {
-          imageUrl = urlData.publicUrl
+          imageUrl = urlData.publicUrl;
         }
       }
 
-      const { error } = await supabase.from('reviews').insert({
+      const { error } = await supabase.from("reviews").insert({
         user_id: user.id,
         product_id: productId,
         order_id: orderId,
         rating,
         comment: comment || null,
         is_verified_purchase: true,
-      })
+      });
 
       if (error) {
-        toast.error('Failed to submit review')
-        setIsSubmitting(false)
-        return
+        toast.error("Failed to submit review");
+        setIsSubmitting(false);
+        return;
       }
 
-      toast.success('Review submitted!')
-      onSubmit()
-      onClose()
+      toast.success("Review submitted!");
+      onSubmit();
+      onClose();
     } catch {
-      toast.error('An unexpected error occurred')
+      toast.error("An unexpected error occurred");
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -90,9 +99,7 @@ export function ReviewModal({ productId, orderId, productName, onClose, onSubmit
         <h3 className="text-lg font-semibold text-gray-900 mb-1">
           Review: {productName}
         </h3>
-        <p className="text-sm text-gray-500 mb-4">
-          How was your experience?
-        </p>
+        <p className="text-sm text-gray-500 mb-4">How was your experience?</p>
 
         <div className="flex items-center gap-1 mb-4">
           {[1, 2, 3, 4, 5].map((star) => (
@@ -102,13 +109,13 @@ export function ReviewModal({ productId, orderId, productName, onClose, onSubmit
               onMouseEnter={() => setHoverRating(star)}
               onMouseLeave={() => setHoverRating(0)}
               className="p-0.5 transition"
-              aria-label={`Rate ${star} star${star > 1 ? 's' : ''}`}
+              aria-label={`Rate ${star} star${star > 1 ? "s" : ""}`}
             >
               <svg
                 className={`w-8 h-8 ${
                   star <= (hoverRating || rating)
-                    ? 'text-yellow-400'
-                    : 'text-gray-300'
+                    ? "text-yellow-400"
+                    : "text-gray-300"
                 }`}
                 fill="currentColor"
                 viewBox="0 0 20 20"
@@ -151,10 +158,10 @@ export function ReviewModal({ productId, orderId, productName, onClose, onSubmit
             disabled={isSubmitting || rating === 0}
             className="flex-1 px-4 py-2 bg-[#F0E68C] text-[#5C4033] text-sm font-medium rounded-lg hover:bg-[#e6db7a] transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isSubmitting ? 'Submitting...' : 'Submit Review'}
+            {isSubmitting ? "Submitting..." : "Submit Review"}
           </button>
         </div>
       </div>
     </div>
-  )
+  );
 }

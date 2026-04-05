@@ -1,33 +1,34 @@
-import type { Metadata } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
-import { NextIntlClientProvider } from 'next-intl'
-import { getMessages } from 'next-intl/server'
-import './globals.css'
-import HeaderWrapper from '@/components/header-wrapper'
-import { Toaster } from 'react-hot-toast'
+import type { Metadata } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
+import { NextIntlClientProvider } from "next-intl";
+import { getMessages } from "next-intl/server";
+import "./globals.css";
+import HeaderWrapper from "@/components/header-wrapper";
+import { Footer } from "@/components/footer";
+import { Toaster } from "react-hot-toast";
 
 const geistSans = Geist({
-  variable: '--font-geist-sans',
-  subsets: ['latin'],
-})
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
 
 const geistMono = Geist_Mono({
-  variable: '--font-geist-mono',
-  subsets: ['latin'],
-})
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
 
 export const metadata: Metadata = {
-  title: 'HomeHarvest — Farm Fresh, Delivered Local',
+  title: "HomeHarvest — Farm Fresh, Delivered Local",
   description:
-    'Hyperlocal farm-to-home food marketplace for Thrissur, Kerala, India. Fresh vegetables, country chicken, nadan fish, and more — straight from local farms to your table.',
-}
+    "Hyperlocal farm-to-home food marketplace for Thrissur, Kerala, India. Fresh vegetables, country chicken, nadan fish, and more — straight from local farms to your table.",
+};
 
 export default async function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode
+  children: React.ReactNode;
 }>) {
-  const messages = await getMessages()
+  const messages = await getMessages();
 
   return (
     <html
@@ -38,9 +39,10 @@ export default async function RootLayout({
         <NextIntlClientProvider messages={messages}>
           <HeaderWrapper />
           <main className="flex-1">{children}</main>
+          <Footer />
           <Toaster position="top-right" />
         </NextIntlClientProvider>
       </body>
     </html>
-  )
+  );
 }

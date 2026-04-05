@@ -80,11 +80,15 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     products = []
   }
 
+  const featured = products.slice(0, 5)
+  const bestSellers = products.slice(5, 8)
+  const trending = products.slice(8, 13)
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
       <HeroSection />
 
-      <div className="space-y-4 mb-8">
+      <div className="space-y-4 mb-12 mt-8">
         <SearchBar initialValue={params.search ?? ''} />
         <CategoryFilter
           categories={categories}
@@ -96,22 +100,84 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         />
       </div>
 
-      <AnimatedProductGrid products={products} />
+      {params.search || params.category ? (
+        // Search Mode
+        <AnimatedProductGrid products={products} />
+      ) : (
+        // Homepage Dashboard Mode
+        <div className="space-y-16">
+          {/* Featured Products */}
+          {featured.length > 0 && (
+            <section>
+              <div className="flex items-center gap-4 mb-6">
+                <h2 className="text-2xl font-bold text-[var(--foreground)]">Featured Products</h2>
+                <div className="h-px bg-gray-200 flex-1" />
+                <span className="text-xs text-[var(--primary)] font-semibold uppercase tracking-wider">Scroll →</span>
+              </div>
+              <AnimatedProductGrid products={featured} />
+            </section>
+          )}
+
+          {/* Promo Banner Mid */}
+          <div className="w-full bg-gradient-to-r from-[#d8b4e2] to-[#bca0dc] rounded-3xl p-8 flex flex-col md:flex-row items-center justify-between shadow-md">
+             <div className="text-white">
+                <p className="text-sm font-semibold uppercase tracking-widest mb-1">From Local Farms to Your Kitchen</p>
+                <h3 className="text-2xl md:text-3xl font-bold">Experience the best of Kerala's organic produce</h3>
+             </div>
+             <div className="text-xl md:text-2xl font-extrabold text-[#7e57c2] mt-4 md:mt-0 drop-shadow-sm bg-white/20 px-6 py-3 rounded-full">
+                Freshness Guaranteed
+             </div>
+          </div>
+
+          {/* Best Sellers Grid Component Map (Reused AnimatedGrid) */}
+          {bestSellers.length > 0 && (
+            <section>
+              <div className="flex items-center gap-4 mb-6">
+                <h2 className="text-2xl font-bold text-[var(--foreground)]">Best Sellers</h2>
+                <div className="h-px bg-gray-200 flex-1" />
+              </div>
+              <AnimatedProductGrid products={bestSellers} />
+            </section>
+          )}
+
+          {/* Trending Products */}
+          {trending.length > 0 && (
+            <section>
+              <div className="flex items-center gap-4 mb-6">
+                <h2 className="text-2xl font-bold text-[var(--foreground)]">Trending Products</h2>
+                <div className="h-px bg-gray-200 flex-1" />
+              </div>
+              <AnimatedProductGrid products={trending} />
+            </section>
+          )}
+
+          {/* Bottom Banner */}
+          <div className="w-full bg-gradient-to-br from-pink-200 to-pink-300 rounded-3xl p-8 shadow-md relative overflow-hidden flex items-center min-h-[200px]">
+             <div className="relative z-10 w-full md:w-1/2">
+                <span className="px-3 py-1 bg-white rounded-full text-[var(--foreground)] text-xs font-bold mb-4 inline-block shadow-sm">Fresh Harvest</span>
+                <h2 className="text-3xl md:text-4xl font-extrabold text-[var(--foreground)] mb-2 leading-tight">Supporting our local farmers</h2>
+                <p className="text-gray-700 mb-6 font-medium">Hyperlocal farm-to-home marketplace.</p>
+                <button className="px-6 py-2 bg-white rounded-full text-sm font-bold shadow hover:shadow-md transition">Explore Produce →</button>
+             </div>
+             <div className="absolute top-0 right-0 w-1/2 h-full opacity-50 md:opacity-100 bg-cover bg-center mix-blend-multiply" style={{backgroundImage: 'url("https://www.transparenttextures.com/patterns/food.png")'}}></div>
+          </div>
+        </div>
+      )}
 
       {totalPages > 1 && (
-        <div className="flex justify-center items-center gap-2 mt-8">
+        <div className="flex justify-center items-center gap-2 mt-12">
           {page > 1 && (
             <a
               href={`/?${new URLSearchParams({
                 ...params,
                 page: String(page - 1),
               }).toString()}`}
-              className="px-4 py-2 rounded-lg border border-gray-200 text-sm hover:bg-gray-50 transition"
+              className="px-4 py-2 rounded-full border border-gray-200 text-sm hover:bg-gray-50 transition shadow-sm"
             >
               Previous
             </a>
           )}
-          <span className="text-sm text-gray-600">
+          <span className="text-sm font-semibold text-gray-600">
             Page {page} of {totalPages}
           </span>
           {page < totalPages && (
@@ -120,7 +186,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 ...params,
                 page: String(page + 1),
               }).toString()}`}
-              className="px-4 py-2 rounded-lg border border-gray-200 text-sm hover:bg-gray-50 transition"
+              className="px-4 py-2 rounded-full border border-gray-200 text-sm hover:bg-gray-50 transition shadow-sm"
             >
               Next
             </a>
